@@ -21,15 +21,6 @@ distance_past_floorPlan = 50
 distance_past_sitePlan = 5
 
 
-def check_file_exists(output_pdf):
-    file_path = output_pdf
-    return os.path.isfile(file_path)
-
-file_path = output_pdf
-if check_file_exists(output_pdf):
-    os.remove(file_path)
-
-
 try:
     # Access the layout
     layout = arcpy.mp.ConvertLayoutFileToLayout(layout_file)
@@ -75,8 +66,8 @@ try:
             for row in cursor:
                 feature_geometry = row[0].extent
 
-    # Calculate the new extent based on the feature's extent and distance past
-    # Expand the feature's extent by adding the distance_past to its width and height
+        # Calculate the new extent based on the feature's extent and distance past
+        # Expand the feature's extent by adding the distance_past to its width and height
         new_extent = arcpy.Extent(
             feature_geometry.XMin - distance_past_floorPlan,
             feature_geometry.YMin - distance_past_floorPlan,
@@ -84,63 +75,49 @@ try:
             feature_geometry.YMax + distance_past_floorPlan
         )
 
+
+        # Set new extent for map frame
         for map_frame in layout.listElements('MAPFRAME_ELEMENT'):
             map_frame.camera.setExtent(new_extent)
-
-        # Export the layout to PDF
-        if not arcpy.Exists(output_pdf):
-            layout.exportToPDF(output_pdf)
-            arcpy.AddMessage(f'PDF file created at: {output_pdf}')
-
-        elif arcpy.Exists(output_pdf):
-            arcpy.Delete_management(output_pdf)
-            layout.exportToPDF(output_pdf)
-            arcpy.AddMessage(f'PDF file replaced previous version of: {output_pdf}')
-
-
 
     # Map view for Site Plan
     elif planType_text == "Site Plan":
 
-        arcpy.AddMessage("Inside Site Plan")
-
         grid_layers = arcpy.ListFeatureClasses('*grid*')
         if not grid_layers:
             arcpy.AddError("No layers containing 'grid' found in the workspace.")
-        else:
-            arcpy.AddMessage("Inside else")
-            # Use the first found grid layer
-            grid_layer = grid_layers[0]
+
+        # Use the first found grid layer
+        grid_layer = grid_layers[0]
         
-            # Find the extent of the grid layer
-            desc = arcpy.Describe(grid_layer)
-            feature_extent = desc.extent
+        # Find the extent of the grid layer
+        desc = arcpy.Describe(grid_layer)
+        feature_extent = desc.extent
 
-            # Calculate the new extent based on the grid layer's extent and distance past
-            new_extent = arcpy.Extent(
-                feature_extent.XMin - distance_past_sitePlan,
-                feature_extent.YMin - distance_past_sitePlan,
-                feature_extent.XMax + distance_past_sitePlan,
-                feature_extent.YMax + distance_past_sitePlan
-            )
+        # Calculate the new extent based on the grid layer's extent and distance past
+        new_extent = arcpy.Extent(
+            feature_extent.XMin - distance_past_sitePlan,
+            feature_extent.YMin - distance_past_sitePlan,
+            feature_extent.XMax + distance_past_sitePlan,
+            feature_extent.YMax + distance_past_sitePlan
+        )
             
+        # Set new extent for map frame
+        for map_frame in layout.listElements('MAPFRAME_ELEMENT'):
+            map_frame.camera.setExtent(new_extent)
 
-            for map_frame in layout.listElements('MAPFRAME_ELEMENT'):
-                map_frame.camera.setExtent(new_extent)
+    # Ensure output_pdf path is a valid PDF file path
+    if not output_pdf.lower().endswith('.pdf'):
+        output_pdf += '.pdf'
+        
+    # Delete existing PDF if exists
+    if os.path.exists(output_pdf):
+        os.remove(output_pdf)
+        arcpy.AddMessage(f"Deleted existing file: {output_pdf}")
 
-            # Export the layout to PDF
-            #arcpy.AddMessage("before exists")
-            #if arcpy.Exists(output_pdf):
-                #arcpy.AddMessage("inside exists")
-                #arcpy.env.overwriteOutput = True
-
-
-        # Export layout to PDF
-        arcpy.AddMessage("inside export")
-        layout.exportToPDF(output_pdf)
-
-
-        arcpy.AddMessage(f'PDF file created at: {output_pdf}')
+    # Export layout to PDF
+    layout.exportToPDF(output_pdf)
+    arcpy.AddMessage(f'PDF file created at: {output_pdf}')
 
 except Exception as e:
     arcpy.AddError(f'Error occurred: {str(e)}')
